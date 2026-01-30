@@ -7,7 +7,7 @@ description = "Neural Circuit Policies - Sparse RNNs inspired by C. elegans, imp
 license = "Apache-2.0"
 repository = "https://github.com/novatechai/ncps-rust"
 keywords = ["neural-network", "rnn", "deep-learning", "burn", "ncp"]
-categories = ["science", "machine-learning"]
+categories = ["science", "algorithms"]
 readme = "README.md"
 documentation = "https://docs.rs/ncps-rust"
 
