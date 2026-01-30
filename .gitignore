@@ -1,0 +1,44 @@
+# Rust / Cargo
+/target/
+Cargo.lock
+
+# Build artifacts
+*.rlib
+*.rmeta
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Documentation build
+/doc/
+
+# Backup files
+*.bak
+*.orig
+
+# Environment
+.env
+.env.local
+
+# Test/benchmark outputs
+*.profraw
+*.profdata
+coverage/
+lcov.info
+
+# Example outputs
+*.bin
+*.model

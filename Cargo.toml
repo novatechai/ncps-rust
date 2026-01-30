@@ -1,0 +1,40 @@
+[package]
+name = "ncps-rust"
+version = "0.1.0"
+edition = "2026"
+authors = ["Mathias Lechner"]
+description = "Neural Circuit Policies - Sparse RNNs inspired by C. elegans, implemented in Rust with Burn"
+license = "Apache-2.0"
+repository = "https://github.com/mlech26l/ncps"
+keywords = ["neural-network", "rnn", "deep-learning", "burn", "ncp"]
+categories = ["science", "machine-learning"]
+readme = "README.md"
+documentation = "https://docs.rs/ncps"
+
+[dependencies]
+burn = { version = "0.16", features = ["std", "dataset"] }
+ndarray = "0.15"
+rand = "0.8"
+rand_distr = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+burn = { version = "0.16", features = ["ndarray"] }
+
+[features]
+default = ["ndarray"]
+ndarray = ["burn/ndarray"]
+wgpu = ["burn/wgpu"]
+candle = ["burn/candle"]
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "ncp_wiring"
+path = "examples/ncp_wiring.rs"
+
+[[example]]
+name = "save_load"
+path = "examples/save_load.rs"
