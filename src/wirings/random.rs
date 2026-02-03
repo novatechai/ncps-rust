@@ -3,7 +3,60 @@ use super::WiringConfig;
 use ndarray::Array2;
 use rand::prelude::*;
 
-/// Random sparsity wiring structure
+/// Random sparse wiring structure (unstructured sparsity).
+///
+/// Unlike [`NCP`](super::NCP) which has structured 4-layer connectivity, `Random` wiring
+/// simply removes a fraction of connections at random. This provides:
+///
+/// - **Unstructured sparsity**: No layer hierarchy
+/// - **Ablation baseline**: Compare against structured sparsity
+/// - **Parameter reduction**: Fewer synapses than fully-connected
+///
+/// # When to Use
+///
+/// - **Ablation studies**: Test if NCP's structure matters vs just sparsity
+/// - **Research**: Compare structured vs unstructured sparse networks
+/// - **Simple sparse networks**: When you don't need biological structure
+///
+/// # Example
+///
+/// ```rust
+/// use ncps::wirings::{Random, Wiring};
+///
+/// // Create random wiring with 50% sparsity
+/// let mut wiring = Random::new(
+///     32,       // units
+///     Some(8),  // output_dim
+///     0.5,      // sparsity_level (50% connections removed)
+///     42,       // seed
+/// );
+///
+/// wiring.build(16);
+///
+/// // Approximately half the possible synapses exist
+/// let max_synapses = 32 * 32;  // 1024
+/// let actual = wiring.synapse_count();
+/// // actual ≈ 512 (with some randomness)
+/// ```
+///
+/// # Sparsity Level
+///
+/// The `sparsity_level` parameter controls what fraction of connections to **remove**:
+///
+/// | `sparsity_level` | Connections | Effect |
+/// |------------------|-------------|--------|
+/// | 0.0 | 100% (dense) | Same as FullyConnected |
+/// | 0.5 | 50% | Moderate sparsity |
+/// | 0.9 | 10% | Very sparse |
+///
+/// # Comparison with NCP
+///
+/// | Aspect | Random | NCP |
+/// |--------|--------|-----|
+/// | Structure | None | 4-layer biological |
+/// | Interpretability | Low | High |
+/// | Information flow | Uncontrolled | Directed |
+/// | Use case | Ablation | Production |
 #[derive(Clone, Debug)]
 pub struct Random {
     units: usize,

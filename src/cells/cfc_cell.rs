@@ -16,14 +16,72 @@ use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ndarray::Array2;
 
-/// CfC cell operating modes
+/// Operating modes for CfC cells.
+///
+/// Each mode implements a different approach to computing the hidden state update.
+/// The choice affects both computational cost and model behavior.
+///
+/// # Mode Comparison
+///
+/// | Mode | Formula | Best For |
+/// |------|---------|----------|
+/// | [`Default`](CfcMode::Default) | `h = tanh(ff1) × (1-σ) + tanh(ff2) × σ` | Most tasks (recommended) |
+/// | [`Pure`](CfcMode::Pure) | `h = a - a × exp(-t × \|w_τ\| + \|ff1\|) × ff1` | Biological accuracy |
+/// | [`NoGate`](CfcMode::NoGate) | `h = tanh(ff1) + tanh(ff2) × σ` | Simple dynamics |
+///
+/// # Choosing a Mode
+///
+/// ## Default (Recommended)
+///
+/// The **gated interpolation** mode provides the best balance of:
+/// - Expressive power (two separate paths)
+/// - Training stability (sigmoid gating)
+/// - Flexibility (learns when to use each path)
+///
+/// Use this unless you have a specific reason not to.
+///
+/// ## Pure
+///
+/// The **ODE-based** mode is closer to the original LTC formulation:
+/// - More biologically plausible
+/// - Direct continuous-time dynamics
+/// - Can be less stable during training
+/// - Fewer parameters (no ff2, time_a, time_b)
+///
+/// Use when biological accuracy matters or for comparison studies.
+///
+/// ## NoGate
+///
+/// The **additive** mode simplifies the gating mechanism:
+/// - Adds instead of interpolates
+/// - Can be easier to train on simple tasks
+/// - May underfit on complex tasks
+///
+/// Use for simple sequential patterns or ablation studies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CfcMode {
-    /// Default gated mode: h = tanh(ff1) * (1 - σ) + tanh(ff2) * σ
+    /// **Recommended.** Gated interpolation between two feedforward paths.
+    ///
+    /// Formula: `h = tanh(ff1) × (1 - σ(t)) + tanh(ff2) × σ(t)`
+    ///
+    /// The time-dependent sigmoid `σ(t) = sigmoid(time_a × t + time_b)` controls
+    /// how much each path contributes to the output.
     Default = 0,
-    /// Pure ODE solution without gating
+
+    /// Pure ODE solution without gating. More biologically plausible.
+    ///
+    /// Formula: `h = a - a × exp(-t × (|w_τ| + |ff1|)) × ff1`
+    ///
+    /// Uses learned time constants `w_τ` and amplitude `a`.
+    /// Has fewer parameters than Default mode.
     Pure = 1,
-    /// No-gate mode: h = ff1 + tanh(ff2) * σ
+
+    /// Simplified additive mode (no interpolation).
+    ///
+    /// Formula: `h = tanh(ff1) + tanh(ff2) × σ(t)`
+    ///
+    /// Adds the gated component instead of interpolating.
+    /// Can work well for simpler tasks.
     NoGate = 2,
 }
 

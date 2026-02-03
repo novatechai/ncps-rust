@@ -1,6 +1,6 @@
 [package]
-name = "ncps-rust"
-version = "0.1.0"
+name = "ncps"
+version = "0.1.1"
 edition = "2021"
 authors = ["Subhankar Chowdhury"]
 description = "Neural Circuit Policies - Sparse RNNs inspired by C. elegans, implemented in Rust with Burn"
@@ -9,7 +9,7 @@ repository = "https://github.com/novatechai/ncps-rust"
 keywords = ["neural-network", "rnn", "deep-learning", "burn", "ncp"]
 categories = ["science", "algorithms"]
 readme = "README.md"
-documentation = "https://docs.rs/ncps-rust"
+documentation = "https://docs.rs/ncps"
 
 [dependencies]
 burn = { version = "0.16", features = ["std", "dataset"] }

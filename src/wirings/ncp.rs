@@ -3,8 +3,90 @@ use super::WiringConfig;
 use ndarray::Array2;
 use rand::prelude::*;
 
-/// Neural Circuit Policy wiring structure
-/// Implements a 4-layer architecture: sensories -> inter -> command -> motor
+/// Neural Circuit Policy (NCP) wiring with biologically-inspired 4-layer architecture.
+///
+/// NCPs implement sparse, structured connectivity patterns inspired by the nervous system
+/// of *C. elegans*. This architecture provides:
+///
+/// - **Parameter efficiency**: Fewer synapses than fully-connected networks
+/// - **Interpretability**: Clear information flow through defined layers
+/// - **Biological plausibility**: Excitatory/inhibitory synapse types
+///
+/// # Architecture
+///
+/// NCPs organize neurons into 4 functional layers:
+///
+/// ```text
+/// Sensory Inputs ──► Inter Neurons ──► Command Neurons ──► Motor Neurons
+///    (input)         (processing)      (integration)       (output)
+///                                           │
+///                                           └──► Recurrent connections
+/// ```
+///
+/// ## Layer Descriptions
+///
+/// | Layer | Role | Connectivity |
+/// |-------|------|--------------|
+/// | **Sensory** | External inputs | → Inter (via `sensory_fanout`) |
+/// | **Inter** | Feature extraction | → Command (via `inter_fanout`) |
+/// | **Command** | Decision/integration | → Motor + self (recurrent) |
+/// | **Motor** | Output neurons | ← Command (via `motor_fanin`) |
+///
+/// # Connectivity Parameters
+///
+/// - `sensory_fanout`: How many inter neurons each input connects to
+/// - `inter_fanout`: How many command neurons each inter neuron connects to
+/// - `recurrent_command_synapses`: Number of command→command recurrent connections
+/// - `motor_fanin`: How many command neurons connect to each motor neuron
+///
+/// # Example
+///
+/// ```rust
+/// use ncps::wirings::{NCP, Wiring};
+///
+/// // Create NCP with explicit layer sizes
+/// let mut wiring = NCP::new(
+///     10,  // inter_neurons: feature processing
+///     8,   // command_neurons: integration layer
+///     4,   // motor_neurons: output size
+///     4,   // sensory_fanout: each input → 4 inter neurons
+///     4,   // inter_fanout: each inter → 4 command neurons
+///     6,   // recurrent_command_synapses
+///     4,   // motor_fanin: each motor ← 4 command neurons
+///     42,  // seed for reproducibility
+/// );
+///
+/// // Must build before use
+/// wiring.build(16);  // 16 input features
+///
+/// // Total neurons = inter + command + motor = 22
+/// assert_eq!(wiring.units(), 22);
+/// assert_eq!(wiring.output_dim(), Some(4));
+/// ```
+///
+/// # Neuron ID Layout
+///
+/// Neurons are assigned IDs in this order:
+/// ```text
+/// [0..motor) [motor..motor+command) [motor+command..units)
+///   Motor        Command                Inter
+/// ```
+///
+/// # When to Use
+///
+/// Use `NCP` directly when you need fine-grained control over:
+/// - Exact layer sizes
+/// - Connectivity density (fanout/fanin parameters)
+/// - Recurrent connection count
+///
+/// For automatic parameter selection, use [`AutoNCP`] instead.
+///
+/// # Panics
+///
+/// The constructor panics if constraints are violated:
+/// - `motor_fanin > command_neurons`
+/// - `sensory_fanout > inter_neurons`
+/// - `inter_fanout > command_neurons`
 #[derive(Clone, Debug)]
 pub struct NCP {
     units: usize,
@@ -385,7 +467,82 @@ impl Wiring for NCP {
     }
 }
 
-/// AutoNCP provides an easier way to create NCP wiring
+/// Automatic NCP configuration with simplified parameters.
+///
+/// `AutoNCP` is the **recommended way** to create NCP wirings. It automatically
+/// calculates layer sizes and connectivity based on just a few high-level parameters.
+///
+/// # Simplified Interface
+///
+/// Instead of specifying 7 parameters like [`NCP`], you only need 4:
+///
+/// | Parameter | Description |
+/// |-----------|-------------|
+/// | `units` | Total number of neurons (hidden state size) |
+/// | `output_size` | Number of motor neurons (output dimension) |
+/// | `sparsity_level` | Fraction of connections to remove (0.0 - 0.9) |
+/// | `seed` | Random seed for reproducibility |
+///
+/// # How Auto-Configuration Works
+///
+/// Given your parameters, AutoNCP:
+///
+/// 1. **Allocates neurons**: `units - output_size` split 60/40 between inter/command
+/// 2. **Sets connectivity**: Based on `density = 1.0 - sparsity_level`
+///    - `sensory_fanout = inter_neurons × density`
+///    - `inter_fanout = command_neurons × density`
+///    - `motor_fanin = command_neurons × density`
+///    - `recurrent_command_synapses = command_neurons × density × 2`
+///
+/// # Example
+///
+/// ```rust
+/// use ncps::wirings::{AutoNCP, Wiring};
+///
+/// // Create with automatic configuration
+/// let mut wiring = AutoNCP::new(
+///     32,    // units: total neurons
+///     8,     // output_size: motor neurons
+///     0.5,   // sparsity_level: 50% connections removed
+///     42,    // seed
+/// );
+///
+/// wiring.build(16);  // 16 input features
+///
+/// // Check auto-calculated structure
+/// assert_eq!(wiring.units(), 32);
+/// assert_eq!(wiring.output_dim(), Some(8));
+/// assert_eq!(wiring.num_layers(), 3);  // inter, command, motor
+/// ```
+///
+/// # Sparsity Level Guide
+///
+/// | Sparsity | Effect | Use Case |
+/// |----------|--------|----------|
+/// | 0.0 | Dense connections | Maximum expressiveness |
+/// | 0.3-0.5 | Moderate sparsity | **Recommended starting point** |
+/// | 0.7-0.9 | Very sparse | Edge deployment, interpretability |
+///
+/// # Constraints
+///
+/// - `output_size < units - 2` (need at least 2 neurons for inter + command)
+/// - `sparsity_level` must be in `[0.0, 0.9]`
+///
+/// # Panics
+///
+/// ```should_panic
+/// use ncps::wirings::AutoNCP;
+///
+/// // Panics: output_size too large
+/// let wiring = AutoNCP::new(10, 9, 0.5, 42);
+/// ```
+///
+/// ```should_panic
+/// use ncps::wirings::AutoNCP;
+///
+/// // Panics: sparsity_level out of range
+/// let wiring = AutoNCP::new(32, 8, 0.95, 42);
+/// ```
 #[derive(Clone, Debug)]
 pub struct AutoNCP {
     ncp: NCP,
